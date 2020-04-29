@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <title>振り仮名をルビに変換するページ</title>
+    <style>
+      textarea {
+          resize: none;
+          width: 100%;
+          height: 100pt;
+      }
+
+      pre {
+          white-space: pre-wrap;
+      }
+
+      .text {
+          min-height: 100pt;
+      }
+
+      .center {
+          width: 80%;
+          margin: auto;
+      }
+
+      .border {
+          border: 1px solid black;
+      }
+    </style>
+    <script>
+      function func(match, p1, p2, p3, p4) {
+          let codePoints = Array.from(p1);
+          for (let i = 0; i < codePoints.length; ++i) {
+              let substring = codePoints.slice(i).join("");
+              if (substring.match(/^(?:\p{sc=Hiragana}{2,})?\p{sc=Han}/u)) {
+                  let re_part = substring.replace(/\p{sc=Han}+/ug, "(\\p{sc=Hiragana}{1,12})");
+                  let re = new RegExp("^" + re_part + "$", "u");
+                  let m = p3.match(re);
+                  if (!m) {
+                      continue;
+                  }
+                  let count = 1;
+                  let result = substring.replace(/\p{sc=Han}+/ug, function(match) {
+                      return "<ruby>" + match + "<rp>" + p2 + "</rp><rt>" + m[count++] + "</rt><rp>" + p4 + "</rp></ruby>";
+                  });
+                  return codePoints.slice(0, i).join("") + result;
+              }
+          }
+      }
+      function convert() {
+          let original_text = document.getElementById("original").value;
+          let html = original_text.replace(/([\p{sc=Hiragana}\p{sc=Katakana}ー\p{sc=Han}]{1,10})([\(（])([\p{sc=Hiragana}ー]+)([\)）])/ug, func);
+          document.getElementById("result_html").innerHTML = html.replace(/\n/ug, "<br>\n");
+          let source = html.replace(/</ug, "&lt;").replace(/>/ug, "&gt;");
+          document.getElementById("result_source").innerHTML = "<pre>" + source + "</pre>";
+      }
+    </script>
+  </head>
+  <body>
+    <div class="center">
+      <p>
+        <a href="https://www.webtoolss.com/hiragana.html">フリがなツール</a>の出力結果をルビに変換します。
+      </p>
+      <p>
+        入力（例：「漢字(かんじ)」）
+      </p>
+      <div class="text">
+        <textarea id="original"></textarea>
+      </div>
+      <input type="button" value="変換" onclick="convert();">
+      <p>
+        結果
+      </p>
+      <div id="result_html" class="border text">
+      </div>
+      <p>
+        結果（ソース）
+      </p>
+      <div id="result_source" class="border text">
+      </div>
+    </div>
+  </body>
+</html>
+
