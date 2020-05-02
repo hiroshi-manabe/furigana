@@ -27,25 +27,72 @@
       }
     </style>
     <script>
+      let regexpOnStr = "(?:[あいうえおかがきぎくぐけげこごさざしじすずせぜそぞただちつでとどなにはぱばひぴびふぷぶほぽぼまみむもやゆよらりるろわ]|[あえかがけげさざすずせぜただつてでなねはぱばへぺべまめゆらるれわ]い|[おくぐこごすそぞつとどのふぷほぽぼもゆよろ]う|[いえげしじせてでへぺりれ]き|[あいおかがきこごさじそぞただちとどにはぱばふぷほぽぼまもやよらりろわ][くっ]|[いきしせにはぱばり]ち|[かがさじなはぱほぽぼ]っ|[あいうえおかがきくけげこさざしじせぜそただちてとねはぱばひぴふぷぶべほぽぼまみめもらりれ][つっ]|[きしじち]ゃ|[きぎしじちにひぴびみり]ゃ[くっ]|[しじ]ゅ|[きぎしじちにり]ゅう|[しじ]ゅ[くっ]|[しじ]ゅ[つっ]|[しじ]ゅん|[きぎしじちにり]ょ|[きぎしじちにひぴびみり]ょう|[きぎしじちり]ょ[くっ]|[あいうえおかがきぎくぐけげこごさざしじすせぜそぞただちてでとどなにねはぱばひぴびふぷぶへぺべほぽぼまみめもらりれろわ]ん)";
+      
       function func(match, p1, p2, p3, p4) {
-          let codePoints = Array.from(p1);
+          let origCodePoints = Array.from(p1);
+          let codePoints = Array.from(p1.replace(/[ァ-ン]/g, function(s) { return String.fromCharCode(s.charCodeAt(0) - 0x60);}));
+          let regexpAllOn = new RegExp("^" + regexpOnStr + "*$", "u");
+          let isNotOn = !p3.match(regexpAllOn);
+          let minKanjiPos = codePoints.length;
+          let maxOnPos = 0;
+          let pronounPos = codePoints.length;
+          if (p3.match(/^(?:(?:わたし|ぼく|おれ|きみ|かれ)(?:ら|たち)?|われわれ)/, "u")) {
+              let m = p1.match(/([私僕俺君彼][ら等達]?|我々)$/);
+              if (m) {
+                  pronounPos = codePoints.length - m[1].length;
+              }
+          }
           for (let i = 0; i < codePoints.length; ++i) {
               let substring = codePoints.slice(i).join("");
-              if (substring.match(/^(?:\p{sc=Hiragana}{2,})?\p{sc=Han}/u)) {
-                  let re_part = substring.replace(/\p{sc=Han}+/ug, "(\\p{sc=Hiragana}{1,12})");
-                  let re = new RegExp("^" + re_part + "$", "u");
+              if (!substring.match(/^\p{sc=Han}+$/ug)) {
+                  continue;
+              }
+              minKanjiPos = i < minKanjiPos ? i : minKanjiPos;
+              let t = "^";
+              for (let j = 0; j < codePoints.length - i; ++j) {
+                  t += "(" + regexpOnStr + ")";
+              }
+              t += "$";
+              let regexpOn = new RegExp(t, "u");
+              let m = p3.match(regexpOn)
+              if (m) {
+                  let isOk = true;
+                  for (let j = 0; j < codePoints.length - i; ++j) {
+                      if ((m[j + 1] + codePoints[i + j]).match(/.(?:い井|い以|い位|い依|い偉|い威|い彙|い意|い為|い異|い維|い衣|い違|う宇|う雨|き企|き器|き奇|き季|き寄|き岐|き忌|き揮|き期|き木|き棄|き機|き気|き生|き紀|き規|き記|き貴|き鬼|く久|く供|く区|く口|く句|く工|く紅|く苦|く駆|ち千|ち地|ち治|ち知|ち置|ち致|つ津|つ都|う日)$/, "u")) {
+                          isOk = false;
+                      }
+                  }
+                  maxOnPos = (isOk && i > maxOnPos) ? i : maxOnPos;
+              }
+          }
+          if (maxOnPos != 0 && pronounPos == codePoints.length) {
+              return origCodePoints.slice(0, maxOnPos).join("") + "<ruby>" + origCodePoints.slice(maxOnPos).join("") + "<rp>" + p2 + "</rp><rt>" + p3 + "</rt><rp>" + p4 + "</rp></ruby>";
+          }
+          for (let i = 0; i < codePoints.length; ++i) {
+              if (pronounPos != codePoints.length && i != pronounPos) {
+                  continue;
+              }
+              let substring = codePoints.slice(i).join("");
+              if (substring.match(/^(?:\p{sc=Hiragana}{2,})?\p{sc=Han}/u) && substring.match(/\p{sc=Hiragana}/u)) {
+                  let regexpPart = substring.replace(/\p{sc=Han}+/ug, "(\\p{sc=Hiragana}{1,12})");
+                  let re = new RegExp("^" + regexpPart + "$", "u");
                   let m = p3.match(re);
                   if (!m) {
                       continue;
                   }
                   let count = 1;
-                  let result = substring.replace(/\p{sc=Han}+/ug, function(match) {
+                  let origSubstring = origCodePoints.slice(i).join("");
+                  let result = origSubstring.replace(/\p{sc=Han}+/ug, function(match) {
                       return "<ruby>" + match + "<rp>" + p2 + "</rp><rt>" + m[count++] + "</rt><rp>" + p4 + "</rp></ruby>";
                   });
-                  return codePoints.slice(0, i).join("") + result;
+                  return origCodePoints.slice(0, i).join("") + result;
               }
           }
+          minKanjiPos = pronounPos != codePoints.length ? pronounPos : minKanjiPos;
+          return origCodePoints.slice(0, minKanjiPos).join("") + "<ruby>" + origCodePoints.slice(minKanjiPos).join("") + "<rp>" + p2 + "</rp><rt>" + p3 + "</rt><rp>" + p4 + "</rp></ruby>";
       }
+      
       function convert() {
           let original_text = document.getElementById("original").value;
           let html = original_text.replace(/([\p{sc=Hiragana}\p{sc=Katakana}ー\p{sc=Han}]{1,10})([\(（])([\p{sc=Hiragana}ー]+)([\)）])/ug, func);
