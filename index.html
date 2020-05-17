@@ -74,7 +74,7 @@
                   continue;
               }
               let substring = codePoints.slice(i).join("");
-              if (substring.match(/^(?:\p{sc=Hiragana}{2,})?\p{sc=Han}/u) && substring.match(/\p{sc=Hiragana}/u)) {
+              if (substring.match(/^(?:\p{sc=Hiragana}{2,}|ご|お)?\p{sc=Han}/u) && substring.match(/\p{sc=Hiragana}/u)) {
                   let regexpPart = substring.replace(/\p{sc=Han}+/ug, "(\\p{sc=Hiragana}{1,12})");
                   let re = new RegExp("^" + regexpPart + "$", "u");
                   let m = p3.match(re);
